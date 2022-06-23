@@ -1,115 +1,261 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:isolate';
+
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:palette_swap_tool/settings.dart';
+import 'package:palette_swap_tool/widgets/theme_mode_button.dart';
+import 'package:image/image.dart' as image_loader;
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
+    const seedColor = Colors.teal;
+
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Palette Swap Tool',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
+        useMaterial3: true,
+        colorSchemeSeed: seedColor,
+        brightness: Brightness.light,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: seedColor,
+        brightness: Brightness.dark,
+      ),
+      themeMode: themeMode,
+      home: const MainPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class MainPage extends StatefulWidget {
+  const MainPage({Key? key}) : super(key: key);
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MainPage> createState() => _MainPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _MainPageState extends State<MainPage> {
+  List<_LoadedImage> _loadedImages = [];
 
-  void _incrementCounter() {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    const headingPadding = 8.0;
+    const sectionPadding = 32.0;
+    const columnPadding = 48.0;
+
+    const fileListWidth = 200.0;
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Input Files", style: theme.textTheme.headlineLarge),
+                    const SizedBox(height: headingPadding),
+                    Consumer(builder: ((context, ref, child) {
+                      String? initialDir = ref.watch(previousFolderProvider);
+
+                      // Make null if empty to not set on dialog open
+                      if (initialDir != null && initialDir.isEmpty) {
+                        initialDir = null;
+                      }
+
+                      return Row(
+                        children: [
+                          TextButton.icon(
+                            onPressed: () => _pickInputFolder(initialDir, ref),
+                            icon: const Icon(Icons.folder_open),
+                            label: const Text("Open Folder"),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => _pickInputFiles(initialDir, ref),
+                            icon: const Icon(Icons.file_open),
+                            label: const Text("Open Files"),
+                          ),
+                        ],
+                      );
+                    })),
+                    const SizedBox(height: headingPadding),
+                    Text(
+                      "${_loadedImages.length} files loaded:",
+                      style: theme.textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: headingPadding),
+                    Expanded(
+                      child: SizedBox(
+                        width: fileListWidth,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.only(right: 12.0),
+                          itemBuilder: (context, index) {
+                            final image = _loadedImages[index];
+                            return Card(
+                              child: Column(
+                                children: [
+                                  Text(image.fileName),
+                                  Image.memory(
+                                    image.bytes,
+                                    height: 150,
+                                    fit: BoxFit.contain,
+                                    filterQuality: FilterQuality.none,
+                                  )
+                                ],
+                              ),
+                            );
+                          },
+                          itemCount: _loadedImages.length,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: columnPadding),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Palettes", style: theme.textTheme.headlineLarge),
+                      const SizedBox(height: headingPadding),
+                      const SizedBox(height: sectionPadding),
+                      Text("Preview", style: theme.textTheme.headlineLarge),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            alignment: Alignment.bottomRight,
+            padding: const EdgeInsets.all(12.0),
+            child: const ThemeModeButton(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickInputFolder(String? initialDirectory, WidgetRef ref) async {
+    final result = await FilePicker.platform.getDirectoryPath(
+      initialDirectory: initialDirectory,
+    );
+    if (result == null) return;
+
+    // Save folder location to open at next time
+    ref.read(previousFolderProvider.notifier).setValue(result);
+
+    final filesAsBytes = await Directory(result)
+        .list()
+        .where((entity) => entity is File && entity.path.endsWith('.png'))
+        .asyncMap((entity) async {
+      final file = entity as File;
+      final bytes = await file.readAsBytes();
+      return _LoadedImage(
+        fileName: file.uri.pathSegments.last,
+        bytes: bytes,
+      );
+    }).toList();
+
+    await _loadImagesFromBytes(filesAsBytes);
+  }
+
+  Future<void> _pickInputFiles(String? initialDirectory, WidgetRef ref) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png'],
+      withData: true,
+      allowMultiple: true,
+      initialDirectory: initialDirectory,
+    );
+    if (result == null) return;
+
+    // TODO: Get directory
+    // if (result.paths.length > 0) {
+    //   final path = result.files[0].
+    // }
+
+    final filesAsBytes = result.files
+        .where((file) => file.bytes != null)
+        .map((file) => _LoadedImage(
+              fileName: file.name,
+              bytes: file.bytes!,
+            ))
+        .toList();
+
+    await _loadImagesFromBytes(filesAsBytes);
+  }
+
+  Future<void> _loadImagesFromBytes(List<_LoadedImage> images) async {
+    final processedImages = await Future.wait(images.map((loadedImage) async {
+      final bytes = await _processLoadedImage(loadedImage.bytes);
+      if (bytes == null) return null;
+      return _LoadedImage(
+        fileName: loadedImage.fileName,
+        bytes: bytes,
+      );
+    }));
+
+    final successfulImages = processedImages.whereType<_LoadedImage>();
+
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _loadedImages = successfulImages.toList();
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
+  Future<Uint8List?> _processLoadedImage(Uint8List bytes) async {
+    var receivePort = ReceivePort();
+
+    // Spawn isolate to decode image so we don't stall the UI thread
+    await Isolate.spawn(
+        _decodeIsolate, _DecodeParam(bytes, receivePort.sendPort));
+
+    // Get the processed image from the isolate.
+    var image = await receivePort.first as image_loader.Image?;
+    if (image != null) image = image_loader.trim(image);
+
+    if (image == null) return null;
+
+    return Uint8List.fromList(image_loader.encodePng(image));
   }
+}
+
+class _LoadedImage {
+  final String fileName;
+  final Uint8List bytes;
+
+  const _LoadedImage({
+    required this.fileName,
+    required this.bytes,
+  });
+}
+
+class _DecodeParam {
+  final Uint8List bytes;
+  final SendPort sendPort;
+  _DecodeParam(this.bytes, this.sendPort);
+}
+
+void _decodeIsolate(_DecodeParam param) {
+  var image = image_loader.decodeImage(param.bytes);
+  param.sendPort.send(image);
 }
