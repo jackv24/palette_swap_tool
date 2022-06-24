@@ -2,28 +2,37 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:image/image.dart' as image_util;
 
-final loadedImagesProvider =
-    StateNotifierProvider<LoadedImagesNotifier, List<LoadedImage>>((ref) {
+part 'image.freezed.dart';
+
+final loadedImagesProvider = StateNotifierProvider.family<LoadedImagesNotifier,
+    List<LoadedImage>, ImageCollectionType>((ref, collectionType) {
   return LoadedImagesNotifier([]);
 });
 
-final trimmedImagesProvider = FutureProvider<List<LoadedImage>>((ref) async {
-  final images = ref.watch(loadedImagesProvider);
-  return await _processLoadedImages(images,
-      trimMode: image_util.TrimMode.transparent);
+final decodedImagesProvider =
+    FutureProvider.family<List<DecodedImage>, ImageCollectionType>(
+        (ref, collectionType) {
+  final loadedImages = ref.watch(loadedImagesProvider(collectionType));
+  return _decodeLoadedImages(loadedImages);
 });
 
-final loadedPalettesProvider =
-    StateNotifierProvider<LoadedImagesNotifier, List<LoadedImage>>((ref) {
-  return LoadedImagesNotifier([]);
-});
+final displayImagesProvider =
+    FutureProvider.family<List<LoadedImage>, ImageCollectionType>(
+        (ref, collectionType) async {
+  final images = await ref.watch(decodedImagesProvider(collectionType).future);
+  return images.map((image) {
+    final trimMode = collectionType.displayTrimMode;
+    final trimmedImage = trimMode == null
+        ? image.image
+        : image_util.trim(image.image, mode: trimMode);
 
-final trimmedPalettesProvider = FutureProvider<List<LoadedImage>>((ref) async {
-  final images = ref.watch(loadedPalettesProvider);
-  return await _processLoadedImages(images,
-      trimMode: image_util.TrimMode.bottomRightColor);
+    return LoadedImage(
+        fileName: image.fileName,
+        bytes: Uint8List.fromList(image_util.encodePng(trimmedImage)));
+  }).toList();
 });
 
 final outputImagesProvider = FutureProvider<List<LoadedImage>>((ref) async {
@@ -31,45 +40,36 @@ final outputImagesProvider = FutureProvider<List<LoadedImage>>((ref) async {
   return [];
 });
 
-Future<List<LoadedImage>> _processLoadedImages(List<LoadedImage> images,
-    {image_util.TrimMode? trimMode}) async {
+Future<List<DecodedImage>> _decodeLoadedImages(List<LoadedImage> images) async {
   final processedImages = await Future.wait(images.map((loadedImage) async {
-    final bytes =
-        await _processLoadedImage(loadedImage.bytes, trimMode: trimMode);
-    if (bytes == null) return null;
-    return LoadedImage(
+    final image = await compute(image_util.decodeImage, loadedImage.bytes);
+    if (image == null) return null;
+    return DecodedImage(
       fileName: loadedImage.fileName,
-      bytes: bytes,
+      image: image,
     );
   }));
 
-  final successfulImages = processedImages.whereType<LoadedImage>();
+  final successfulImages = processedImages.whereType<DecodedImage>();
   return successfulImages.toList();
 }
 
-Future<Uint8List?> _processLoadedImage(Uint8List bytes,
-    {image_util.TrimMode? trimMode}) async {
-  // Decode image off the main thread
-  var image = await compute(image_util.decodeImage, bytes);
+enum ImageCollectionType {
+  input(displayTrimMode: image_util.TrimMode.transparent),
+  palette(displayTrimMode: image_util.TrimMode.bottomRightColor),
+  output;
 
-  // Trim image if desired
-  if (image != null && trimMode != null) {
-    image = image_util.trim(image, mode: trimMode);
-  }
+  const ImageCollectionType({this.displayTrimMode});
 
-  if (image == null) return null;
-
-  return Uint8List.fromList(image_util.encodePng(image));
+  final image_util.TrimMode? displayTrimMode;
 }
 
-class LoadedImage {
-  final String fileName;
-  final Uint8List bytes;
-
-  const LoadedImage({
-    required this.fileName,
-    required this.bytes,
-  });
+@freezed
+class LoadedImage with _$LoadedImage {
+  factory LoadedImage({
+    required String fileName,
+    required Uint8List bytes,
+  }) = _LoadedImage;
 }
 
 class LoadedImagesNotifier extends StateNotifier<List<LoadedImage>> {
@@ -82,4 +82,12 @@ class LoadedImagesNotifier extends StateNotifier<List<LoadedImage>> {
   void clear() {
     state = [];
   }
+}
+
+@freezed
+class DecodedImage with _$DecodedImage {
+  factory DecodedImage({
+    required String fileName,
+    required image_util.Image image,
+  }) = _DecodedImage;
 }

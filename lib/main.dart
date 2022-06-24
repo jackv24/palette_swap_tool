@@ -142,15 +142,18 @@ class MainPage extends StatelessWidget {
                   children: [
                     Text("Input Files", style: headerTextStyle),
                     const SizedBox(height: headingPadding),
-                    LoadImagesButtons(loadedImagesProvider),
+                    LoadImagesButtons(
+                        loadedImagesProvider(ImageCollectionType.input)),
                     const SizedBox(height: headingPadding),
-                    _ListHeading(loadedImagesProvider),
+                    _ListHeading(
+                        loadedImagesProvider(ImageCollectionType.input)),
                     const SizedBox(height: headingPadding),
                     Expanded(
                       child: SizedBox(
                         width: fileListWidth,
                         child: _ImageListView(
-                          imageProvider: trimmedImagesProvider,
+                          imageProvider:
+                              displayImagesProvider(ImageCollectionType.input),
                           itemHeight: fileListItemHeight,
                         ),
                       ),
@@ -164,13 +167,16 @@ class MainPage extends StatelessWidget {
                     children: [
                       Text("Palettes", style: headerTextStyle),
                       const SizedBox(height: headingPadding),
-                      LoadImagesButtons(loadedPalettesProvider),
+                      LoadImagesButtons(
+                          loadedImagesProvider(ImageCollectionType.palette)),
                       const SizedBox(height: headingPadding),
-                      _ListHeading(loadedPalettesProvider),
+                      _ListHeading(
+                          loadedImagesProvider(ImageCollectionType.palette)),
                       const SizedBox(height: headingPadding),
                       Flexible(
                         child: _ImageListView(
-                          imageProvider: trimmedPalettesProvider,
+                          imageProvider: displayImagesProvider(
+                              ImageCollectionType.palette),
                           itemHeight: paletteListItemHeight,
                         ),
                       ),
