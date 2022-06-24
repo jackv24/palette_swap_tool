@@ -1,13 +1,13 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'dart:isolate';
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:palette_swap_tool/settings.dart';
+import 'package:palette_swap_tool/utils/settings.dart';
+import 'package:palette_swap_tool/widgets/load_images_buttons.dart';
 import 'package:palette_swap_tool/widgets/theme_mode_button.dart';
-import 'package:image/image.dart' as image_loader;
+import 'package:palette_swap_tool/utils/image.dart';
+import 'package:image/image.dart' as image_util;
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -48,7 +48,8 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  List<_LoadedImage> _loadedImages = [];
+  List<LoadedImage> _loadedImages = [];
+  List<LoadedImage> _loadedPalettes = [];
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +60,7 @@ class _MainPageState extends State<MainPage> {
     const columnPadding = 48.0;
 
     const fileListWidth = 200.0;
+    const scrollBarPadding = 12.0;
 
     return Scaffold(
       body: Stack(
@@ -74,29 +76,10 @@ class _MainPageState extends State<MainPage> {
                   children: [
                     Text("Input Files", style: theme.textTheme.headlineLarge),
                     const SizedBox(height: headingPadding),
-                    Consumer(builder: ((context, ref, child) {
-                      String? initialDir = ref.watch(previousFolderProvider);
-
-                      // Make null if empty to not set on dialog open
-                      if (initialDir != null && initialDir.isEmpty) {
-                        initialDir = null;
-                      }
-
-                      return Row(
-                        children: [
-                          TextButton.icon(
-                            onPressed: () => _pickInputFolder(initialDir, ref),
-                            icon: const Icon(Icons.folder_open),
-                            label: const Text("Open Folder"),
-                          ),
-                          TextButton.icon(
-                            onPressed: () => _pickInputFiles(initialDir, ref),
-                            icon: const Icon(Icons.file_open),
-                            label: const Text("Open Files"),
-                          ),
-                        ],
-                      );
-                    })),
+                    LoadImagesButtons(
+                      onLoadedImages: _onLoadedImages,
+                      processImages: _processImages,
+                    ),
                     const SizedBox(height: headingPadding),
                     Text(
                       "${_loadedImages.length} files loaded:",
@@ -107,7 +90,8 @@ class _MainPageState extends State<MainPage> {
                       child: SizedBox(
                         width: fileListWidth,
                         child: ListView.builder(
-                          padding: const EdgeInsets.only(right: 12.0),
+                          padding:
+                              const EdgeInsets.only(right: scrollBarPadding),
                           itemBuilder: (context, index) {
                             final image = _loadedImages[index];
                             return Card(
@@ -137,8 +121,40 @@ class _MainPageState extends State<MainPage> {
                     children: [
                       Text("Palettes", style: theme.textTheme.headlineLarge),
                       const SizedBox(height: headingPadding),
+                      LoadImagesButtons(
+                        onLoadedImages: _onLoadedPalettes,
+                        processImages: _processPalettes,
+                      ),
+                      const SizedBox(height: headingPadding),
+                      Text(
+                        "${_loadedPalettes.length} files loaded:",
+                        style: theme.textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: headingPadding),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.only(right: scrollBarPadding),
+                        itemBuilder: (context, index) {
+                          final image = _loadedPalettes[index];
+                          return Card(
+                            child: Column(
+                              children: [
+                                Text(image.fileName),
+                                Image.memory(
+                                  image.bytes,
+                                  height: 50,
+                                  fit: BoxFit.contain,
+                                  filterQuality: FilterQuality.none,
+                                )
+                              ],
+                            ),
+                          );
+                        },
+                        itemCount: _loadedPalettes.length,
+                      ),
                       const SizedBox(height: sectionPadding),
                       Text("Preview", style: theme.textTheme.headlineLarge),
+                      Expanded(child: Container()),
                     ],
                   ),
                 ),
@@ -155,107 +171,16 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  Future<void> _pickInputFolder(String? initialDirectory, WidgetRef ref) async {
-    final result = await FilePicker.platform.getDirectoryPath(
-      initialDirectory: initialDirectory,
-    );
-    if (result == null) return;
+  _onLoadedImages(List<LoadedImage> images) =>
+      setState(() => _loadedImages = images);
 
-    // Save folder location to open at next time
-    ref.read(previousFolderProvider.notifier).setValue(result);
+  Future<List<LoadedImage>> _processImages(List<LoadedImage> images) =>
+      processLoadedImages(images, trimMode: image_util.TrimMode.transparent);
 
-    final filesAsBytes = await Directory(result)
-        .list()
-        .where((entity) => entity is File && entity.path.endsWith('.png'))
-        .asyncMap((entity) async {
-      final file = entity as File;
-      final bytes = await file.readAsBytes();
-      return _LoadedImage(
-        fileName: file.uri.pathSegments.last,
-        bytes: bytes,
-      );
-    }).toList();
+  _onLoadedPalettes(List<LoadedImage> images) =>
+      setState(() => _loadedPalettes = images);
 
-    await _loadImagesFromBytes(filesAsBytes);
-  }
-
-  Future<void> _pickInputFiles(String? initialDirectory, WidgetRef ref) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['png'],
-      withData: true,
-      allowMultiple: true,
-      initialDirectory: initialDirectory,
-    );
-    if (result == null) return;
-
-    // TODO: Get directory
-    // if (result.paths.length > 0) {
-    //   final path = result.files[0].
-    // }
-
-    final filesAsBytes = result.files
-        .where((file) => file.bytes != null)
-        .map((file) => _LoadedImage(
-              fileName: file.name,
-              bytes: file.bytes!,
-            ))
-        .toList();
-
-    await _loadImagesFromBytes(filesAsBytes);
-  }
-
-  Future<void> _loadImagesFromBytes(List<_LoadedImage> images) async {
-    final processedImages = await Future.wait(images.map((loadedImage) async {
-      final bytes = await _processLoadedImage(loadedImage.bytes);
-      if (bytes == null) return null;
-      return _LoadedImage(
-        fileName: loadedImage.fileName,
-        bytes: bytes,
-      );
-    }));
-
-    final successfulImages = processedImages.whereType<_LoadedImage>();
-
-    setState(() {
-      _loadedImages = successfulImages.toList();
-    });
-  }
-
-  Future<Uint8List?> _processLoadedImage(Uint8List bytes) async {
-    var receivePort = ReceivePort();
-
-    // Spawn isolate to decode image so we don't stall the UI thread
-    await Isolate.spawn(
-        _decodeIsolate, _DecodeParam(bytes, receivePort.sendPort));
-
-    // Get the processed image from the isolate.
-    var image = await receivePort.first as image_loader.Image?;
-    if (image != null) image = image_loader.trim(image);
-
-    if (image == null) return null;
-
-    return Uint8List.fromList(image_loader.encodePng(image));
-  }
-}
-
-class _LoadedImage {
-  final String fileName;
-  final Uint8List bytes;
-
-  const _LoadedImage({
-    required this.fileName,
-    required this.bytes,
-  });
-}
-
-class _DecodeParam {
-  final Uint8List bytes;
-  final SendPort sendPort;
-  _DecodeParam(this.bytes, this.sendPort);
-}
-
-void _decodeIsolate(_DecodeParam param) {
-  var image = image_loader.decodeImage(param.bytes);
-  param.sendPort.send(image);
+  Future<List<LoadedImage>> _processPalettes(List<LoadedImage> images) =>
+      processLoadedImages(images,
+          trimMode: image_util.TrimMode.bottomRightColor);
 }

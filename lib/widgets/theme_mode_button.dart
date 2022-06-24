@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:palette_swap_tool/settings.dart';
+import 'package:palette_swap_tool/utils/settings.dart';
 
 class ThemeModeButton extends ConsumerWidget {
   final Color? color;
