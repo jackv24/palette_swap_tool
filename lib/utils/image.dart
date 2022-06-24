@@ -1,6 +1,6 @@
 import 'dart:typed_data';
-import 'dart:isolate';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as image_util;
 
@@ -49,14 +49,10 @@ Future<List<LoadedImage>> _processLoadedImages(List<LoadedImage> images,
 
 Future<Uint8List?> _processLoadedImage(Uint8List bytes,
     {image_util.TrimMode? trimMode}) async {
-  var receivePort = ReceivePort();
+  // Decode image off the main thread
+  var image = await compute(image_util.decodeImage, bytes);
 
-  // Spawn isolate to decode image so we don't stall the UI thread
-  await Isolate.spawn(
-      _decodeIsolate, _DecodeParam(bytes, receivePort.sendPort));
-
-  // Get the processed image from the isolate.
-  var image = await receivePort.first as image_util.Image?;
+  // Trim image if desired
   if (image != null && trimMode != null) {
     image = image_util.trim(image, mode: trimMode);
   }
@@ -74,17 +70,6 @@ class LoadedImage {
     required this.fileName,
     required this.bytes,
   });
-}
-
-void _decodeIsolate(_DecodeParam param) {
-  var image = image_util.decodeImage(param.bytes);
-  param.sendPort.send(image);
-}
-
-class _DecodeParam {
-  final Uint8List bytes;
-  final SendPort sendPort;
-  _DecodeParam(this.bytes, this.sendPort);
 }
 
 class LoadedImagesNotifier extends StateNotifier<List<LoadedImage>> {
