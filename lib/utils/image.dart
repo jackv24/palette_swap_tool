@@ -1,9 +1,37 @@
 import 'dart:typed_data';
 import 'dart:isolate';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as image_util;
 
-Future<List<LoadedImage>> processLoadedImages(List<LoadedImage> images,
+final loadedImagesProvider =
+    StateNotifierProvider<LoadedImagesNotifier, List<LoadedImage>>((ref) {
+  return LoadedImagesNotifier([]);
+});
+
+final trimmedImagesProvider = FutureProvider<List<LoadedImage>>((ref) async {
+  final images = ref.watch(loadedImagesProvider);
+  return await _processLoadedImages(images,
+      trimMode: image_util.TrimMode.transparent);
+});
+
+final loadedPalettesProvider =
+    StateNotifierProvider<LoadedImagesNotifier, List<LoadedImage>>((ref) {
+  return LoadedImagesNotifier([]);
+});
+
+final trimmedPalettesProvider = FutureProvider<List<LoadedImage>>((ref) async {
+  final images = ref.watch(loadedPalettesProvider);
+  return await _processLoadedImages(images,
+      trimMode: image_util.TrimMode.bottomRightColor);
+});
+
+final outputImagesProvider = FutureProvider<List<LoadedImage>>((ref) async {
+  // TODO
+  return [];
+});
+
+Future<List<LoadedImage>> _processLoadedImages(List<LoadedImage> images,
     {image_util.TrimMode? trimMode}) async {
   final processedImages = await Future.wait(images.map((loadedImage) async {
     final bytes =
@@ -57,4 +85,16 @@ class _DecodeParam {
   final Uint8List bytes;
   final SendPort sendPort;
   _DecodeParam(this.bytes, this.sendPort);
+}
+
+class LoadedImagesNotifier extends StateNotifier<List<LoadedImage>> {
+  LoadedImagesNotifier(super.state);
+
+  void update(List<LoadedImage> images) {
+    state = images;
+  }
+
+  void clear() {
+    state = [];
+  }
 }

@@ -64,17 +64,8 @@ class MyApp extends ConsumerWidget {
   }
 }
 
-class MainPage extends StatefulWidget {
+class MainPage extends StatelessWidget {
   const MainPage({Key? key}) : super(key: key);
-
-  @override
-  State<MainPage> createState() => _MainPageState();
-}
-
-class _MainPageState extends State<MainPage> {
-  List<LoadedImage> _loadedImages = [];
-  List<LoadedImage> _loadedPalettes = [];
-  List<LoadedImage> _processedImages = [];
 
   @override
   Widget build(BuildContext context) {
@@ -151,21 +142,15 @@ class _MainPageState extends State<MainPage> {
                   children: [
                     Text("Input Files", style: headerTextStyle),
                     const SizedBox(height: headingPadding),
-                    LoadImagesButtons(
-                      onLoadedImages: _onLoadedImages,
-                      processImages: _processInputImages,
-                    ),
+                    LoadImagesButtons(loadedImagesProvider),
                     const SizedBox(height: headingPadding),
-                    _ListHeading(
-                      listCount: _loadedImages.length,
-                      onListClearPressed: _clearImages,
-                    ),
+                    _ListHeading(loadedImagesProvider),
                     const SizedBox(height: headingPadding),
                     Expanded(
                       child: SizedBox(
                         width: fileListWidth,
                         child: _ImageListView(
-                          images: _loadedImages,
+                          imageProvider: trimmedImagesProvider,
                           itemHeight: fileListItemHeight,
                         ),
                       ),
@@ -179,19 +164,13 @@ class _MainPageState extends State<MainPage> {
                     children: [
                       Text("Palettes", style: headerTextStyle),
                       const SizedBox(height: headingPadding),
-                      LoadImagesButtons(
-                        onLoadedImages: _onLoadedPalettes,
-                        processImages: _processPalettes,
-                      ),
+                      LoadImagesButtons(loadedPalettesProvider),
                       const SizedBox(height: headingPadding),
-                      _ListHeading(
-                        listCount: _loadedPalettes.length,
-                        onListClearPressed: _clearPalettes,
-                      ),
+                      _ListHeading(loadedPalettesProvider),
                       const SizedBox(height: headingPadding),
                       Flexible(
                         child: _ImageListView(
-                          images: _loadedPalettes,
+                          imageProvider: trimmedPalettesProvider,
                           itemHeight: paletteListItemHeight,
                         ),
                       ),
@@ -207,7 +186,7 @@ class _MainPageState extends State<MainPage> {
                     Text("Output Files", style: headerTextStyle),
                     const SizedBox(height: headingPadding),
                     ElevatedButton.icon(
-                      onPressed: _processOutputImages,
+                      onPressed: null,
                       icon: const Icon(Icons.refresh),
                       label: const Text("Refresh"),
                     ),
@@ -222,7 +201,7 @@ class _MainPageState extends State<MainPage> {
                       child: SizedBox(
                         width: fileListWidth,
                         child: _ImageListView(
-                          images: _processedImages,
+                          imageProvider: outputImagesProvider,
                           itemHeight: fileListItemHeight,
                         ),
                       ),
@@ -241,53 +220,31 @@ class _MainPageState extends State<MainPage> {
       ),
     );
   }
-
-  void _onLoadedImages(List<LoadedImage> images) =>
-      setState(() => _loadedImages = images);
-
-  Future<List<LoadedImage>> _processInputImages(List<LoadedImage> images) =>
-      processLoadedImages(images, trimMode: image_util.TrimMode.transparent);
-
-  void _clearImages() => setState((() => _loadedImages.clear()));
-
-  void _onLoadedPalettes(List<LoadedImage> images) =>
-      setState(() => _loadedPalettes = images);
-
-  Future<List<LoadedImage>> _processPalettes(List<LoadedImage> images) =>
-      processLoadedImages(images,
-          trimMode: image_util.TrimMode.bottomRightColor);
-
-  void _clearPalettes() => setState((() => _loadedPalettes.clear()));
-
-  Future<void> _processOutputImages() async {
-    // TODO
-    Future.delayed(const Duration(seconds: 2));
-  }
 }
 
-class _ListHeading extends StatelessWidget {
-  final int listCount;
-  final void Function() onListClearPressed;
+class _ListHeading extends ConsumerWidget {
+  final StateNotifierProvider<LoadedImagesNotifier, List<LoadedImage>>
+      listProvider;
 
-  const _ListHeading({
-    Key? key,
-    required this.listCount,
-    required this.onListClearPressed,
-  }) : super(key: key);
+  const _ListHeading(this.listProvider, {Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final list = ref.watch(listProvider);
+
     final theme = Theme.of(context);
 
     return Row(
       children: [
         Text(
-          "$listCount files loaded",
+          "${list.length} files loaded",
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(width: 8),
         TextButton.icon(
-          onPressed: onListClearPressed,
+          onPressed: () {
+            ref.read(listProvider.notifier).clear();
+          },
           icon: const Icon(Icons.clear_all),
           label: const Text("Clear All"),
         ),
@@ -296,41 +253,46 @@ class _ListHeading extends StatelessWidget {
   }
 }
 
-class _ImageListView extends StatelessWidget {
-  final List<LoadedImage> images;
+class _ImageListView extends ConsumerWidget {
+  final FutureProvider<List<LoadedImage>> imageProvider;
   final double? itemHeight;
 
   const _ImageListView({
     Key? key,
-    required this.images,
+    required this.imageProvider,
     this.itemHeight,
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     const scrollBarPadding = 12.0;
 
-    return ListView.builder(
-      primary: false,
-      shrinkWrap: true,
-      padding: const EdgeInsets.only(right: scrollBarPadding),
-      itemCount: images.length,
-      itemBuilder: (context, index) {
-        final image = images[index];
-        return Card(
-          child: Column(
-            children: [
-              Text(image.fileName),
-              Image.memory(
-                image.bytes,
-                height: itemHeight,
-                fit: BoxFit.contain,
-                filterQuality: FilterQuality.none,
-              )
-            ],
-          ),
-        );
-      },
+    final asyncImages = ref.watch(imageProvider);
+    return asyncImages.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => ErrorWidget(err),
+      data: (images) => ListView.builder(
+        primary: false,
+        shrinkWrap: true,
+        padding: const EdgeInsets.only(right: scrollBarPadding),
+        itemCount: images.length,
+        itemBuilder: (context, index) {
+          final image = images[index];
+          return Card(
+            child: Column(
+              children: [
+                Text(image.fileName),
+                Image.memory(
+                  image.bytes,
+                  height: itemHeight,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.none,
+                )
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

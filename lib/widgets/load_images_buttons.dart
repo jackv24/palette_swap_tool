@@ -7,15 +7,10 @@ import 'package:palette_swap_tool/utils/image.dart';
 import 'package:palette_swap_tool/utils/settings.dart';
 
 class LoadImagesButtons extends ConsumerWidget {
-  final void Function(List<LoadedImage> images) onLoadedImages;
-  final Future<List<LoadedImage>> Function(List<LoadedImage> images)?
-      processImages;
+  final StateNotifierProvider<LoadedImagesNotifier, List<LoadedImage>>
+      updateProvider;
 
-  const LoadImagesButtons({
-    Key? key,
-    required this.onLoadedImages,
-    this.processImages,
-  }) : super(key: key);
+  const LoadImagesButtons(this.updateProvider, {Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -63,7 +58,7 @@ class LoadImagesButtons extends ConsumerWidget {
       );
     }).toList();
 
-    await _doLoad(filesAsBytes);
+    await _doLoad(filesAsBytes, ref);
   }
 
   Future<void> _pickInputFiles(String? initialDirectory, WidgetRef ref) async {
@@ -94,13 +89,10 @@ class LoadImagesButtons extends ConsumerWidget {
             ))
         .toList();
 
-    await _doLoad(filesAsBytes);
+    await _doLoad(filesAsBytes, ref);
   }
 
-  Future<void> _doLoad(List<LoadedImage> images) async {
-    if (processImages != null) {
-      images = await processImages!(images);
-    }
-    onLoadedImages(images);
+  Future<void> _doLoad(List<LoadedImage> images, WidgetRef ref) async {
+    ref.read(updateProvider.notifier).update(images);
   }
 }
