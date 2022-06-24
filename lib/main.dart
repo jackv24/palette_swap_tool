@@ -1,16 +1,40 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palette_swap_tool/utils/settings.dart';
 import 'package:palette_swap_tool/widgets/load_images_buttons.dart';
 import 'package:palette_swap_tool/widgets/theme_mode_button.dart';
 import 'package:palette_swap_tool/utils/image.dart';
 import 'package:image/image.dart' as image_util;
+import 'package:bitsdojo_window/bitsdojo_window.dart';
+
+const appTitle = "Palette Swap Tool";
+
+bool get isDesktop {
+  if (kIsWeb) return false;
+  return [
+    TargetPlatform.windows,
+    TargetPlatform.linux,
+    TargetPlatform.macOS,
+  ].contains(defaultTargetPlatform);
+}
 
 void main() {
-  runApp(const ProviderScope(child: MyApp()));
+  WidgetsFlutterBinding.ensureInitialized();
+
+  runApp(const ProviderScope(
+    child: MyApp(),
+  ));
+
+  if (isDesktop) {
+    doWhenWindowReady(() {
+      appWindow.minSize = const Size(600, 200);
+      appWindow.size = const Size(800, 600);
+      appWindow.alignment = Alignment.center;
+      appWindow.title = appTitle;
+      appWindow.show();
+    });
+  }
 }
 
 class MyApp extends ConsumerWidget {
@@ -54,6 +78,9 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final headerTextStyle = theme.textTheme.titleLarge;
 
     const headingPadding = 8.0;
     const sectionPadding = 32.0;
@@ -62,7 +89,50 @@ class _MainPageState extends State<MainPage> {
     const fileListWidth = 200.0;
     const scrollBarPadding = 12.0;
 
+    Widget? flexibleSpace;
+    if (isDesktop) {
+      final windowButtonColors = WindowButtonColors(
+        iconNormal: colorScheme.onBackground,
+        mouseOver: colorScheme.tertiary,
+        iconMouseOver: colorScheme.onTertiary,
+      );
+      final windowCloseButtonColors = WindowButtonColors(
+        mouseOver: const Color(0xFFD32F2F),
+        mouseDown: const Color(0xFFB71C1C),
+        iconNormal: colorScheme.onBackground,
+        iconMouseOver: const Color(0xFFFFFFFF),
+      );
+
+      flexibleSpace = Stack(children: [
+        MoveWindow(),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Column(
+              children: [
+                WindowTitleBarBox(
+                  child: Row(
+                    children: [
+                      MinimizeWindowButton(colors: windowButtonColors),
+                      MaximizeWindowButton(colors: windowButtonColors),
+                      CloseWindowButton(colors: windowCloseButtonColors),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          ],
+        ),
+      ]);
+    }
+
     return Scaffold(
+      appBar: AppBar(
+        title: const IgnorePointer(
+          child: Text(appTitle),
+        ),
+        flexibleSpace: flexibleSpace,
+      ),
       body: Stack(
         children: [
           Padding(
@@ -74,7 +144,7 @@ class _MainPageState extends State<MainPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Input Files", style: theme.textTheme.headlineLarge),
+                    Text("Input Files", style: headerTextStyle),
                     const SizedBox(height: headingPadding),
                     LoadImagesButtons(
                       onLoadedImages: _onLoadedImages,
@@ -119,7 +189,7 @@ class _MainPageState extends State<MainPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Palettes", style: theme.textTheme.headlineLarge),
+                      Text("Palettes", style: headerTextStyle),
                       const SizedBox(height: headingPadding),
                       LoadImagesButtons(
                         onLoadedImages: _onLoadedPalettes,
@@ -153,7 +223,7 @@ class _MainPageState extends State<MainPage> {
                         itemCount: _loadedPalettes.length,
                       ),
                       const SizedBox(height: sectionPadding),
-                      Text("Preview", style: theme.textTheme.headlineLarge),
+                      Text("Preview", style: headerTextStyle),
                       Expanded(child: Container()),
                     ],
                   ),
