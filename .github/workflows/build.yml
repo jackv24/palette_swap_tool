@@ -22,7 +22,7 @@ jobs:
         run: |
           case $GITHUB_REF in
             "refs/tags/"*) echo "BUILD_NAME=${GITHUB_REF/refs\/tags\/v}" >> $GITHUB_ENV ;;
-            *) echo "BUILD_NAME=$GITHUB_REF" >> $GITHUB_ENV ;;
+            *) echo "BUILD_NAME='0.0.0'" >> $GITHUB_ENV ;;
           esac
       - uses: subosito/flutter-action@v1
         with:
@@ -59,10 +59,19 @@ jobs:
       # Set build name conditionally
       - name: Set Build name
         run: |
-          case $GITHUB_REF in
-            "refs/tags/"*) echo "BUILD_NAME=${GITHUB_REF/refs\/tags\/v}" >> $GITHUB_ENV ;;
-            *) echo "BUILD_NAME=$GITHUB_REF" >> $GITHUB_ENV ;;
-          esac
+          $input = 'refs/tags/v0.1.0';
+          $result = switch -Regex ( $input )
+          {
+              'refs/tags/v'
+              {
+                  $input | Select-String -Pattern '(refs/tags/v)(.*)' -AllMatches | % {$_.matches.groups[2].value}
+              }
+              default
+              {
+                  '0.0.0'
+              }
+          };
+          echo "BUILD_NAME='$result'" >> $env:GITHUB_ENV;
       - uses: subosito/flutter-action@v1
         with:
           channel: 'stable'
@@ -98,7 +107,7 @@ jobs:
         run: |
           case $GITHUB_REF in
             "refs/tags/"*) echo "BUILD_NAME=${GITHUB_REF/refs\/tags\/v}" >> $GITHUB_ENV ;;
-            *) echo "BUILD_NAME=$GITHUB_REF" >> $GITHUB_ENV ;;
+            *) echo "BUILD_NAME='0.0.0'" >> $GITHUB_ENV ;;
           esac
       - uses: subosito/flutter-action@v1
         with:
