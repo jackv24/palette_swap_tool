@@ -1,6 +1,16 @@
 name: Flutter CI
 
-on: push
+on:
+  push:
+    paths:
+      - ".github/workflows/build.yml"
+      - "lib/**"
+      - "linux/**"
+      - "macos/**"
+      - "windows/**"
+      - "test/**"
+      - "pubspec.lock"
+      - "pubspec.yaml"
 
 jobs:
   build-linux:
