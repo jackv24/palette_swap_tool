@@ -74,6 +74,7 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   List<LoadedImage> _loadedImages = [];
   List<LoadedImage> _loadedPalettes = [];
+  List<LoadedImage> _processedImages = [];
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +88,9 @@ class _MainPageState extends State<MainPage> {
     const columnPadding = 48.0;
 
     const fileListWidth = 200.0;
-    const previewHeight = 200.0;
+    const fileListItemHeight = 150.0;
+    const paletteListItemHeight = 50.0;
+    const previewHeight = 300.0;
 
     // On desktop we need window buttons, since system window border is hidden
     Widget? flexibleSpace;
@@ -133,6 +136,7 @@ class _MainPageState extends State<MainPage> {
           child: Text(appTitle),
         ),
         flexibleSpace: flexibleSpace,
+        scrolledUnderElevation: 0,
       ),
       body: Stack(
         children: [
@@ -149,7 +153,7 @@ class _MainPageState extends State<MainPage> {
                     const SizedBox(height: headingPadding),
                     LoadImagesButtons(
                       onLoadedImages: _onLoadedImages,
-                      processImages: _processImages,
+                      processImages: _processInputImages,
                     ),
                     const SizedBox(height: headingPadding),
                     _ListHeading(
@@ -162,7 +166,7 @@ class _MainPageState extends State<MainPage> {
                         width: fileListWidth,
                         child: _ImageListView(
                           images: _loadedImages,
-                          itemHeight: 150,
+                          itemHeight: fileListItemHeight,
                         ),
                       ),
                     ),
@@ -188,7 +192,7 @@ class _MainPageState extends State<MainPage> {
                       Flexible(
                         child: _ImageListView(
                           images: _loadedPalettes,
-                          itemHeight: 50,
+                          itemHeight: paletteListItemHeight,
                         ),
                       ),
                       const SizedBox(height: sectionPadding),
@@ -196,6 +200,34 @@ class _MainPageState extends State<MainPage> {
                       const SizedBox(height: previewHeight),
                     ],
                   ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Output Files", style: headerTextStyle),
+                    const SizedBox(height: headingPadding),
+                    ElevatedButton.icon(
+                      onPressed: _processOutputImages,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text("Refresh"),
+                    ),
+                    const SizedBox(height: headingPadding),
+                    ElevatedButton.icon(
+                      onPressed: null,
+                      icon: const Icon(Icons.save),
+                      label: const Text("Output To Folder"),
+                    ),
+                    const SizedBox(height: headingPadding),
+                    Expanded(
+                      child: SizedBox(
+                        width: fileListWidth,
+                        child: _ImageListView(
+                          images: _processedImages,
+                          itemHeight: fileListItemHeight,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -210,22 +242,27 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  _onLoadedImages(List<LoadedImage> images) =>
+  void _onLoadedImages(List<LoadedImage> images) =>
       setState(() => _loadedImages = images);
 
-  Future<List<LoadedImage>> _processImages(List<LoadedImage> images) =>
+  Future<List<LoadedImage>> _processInputImages(List<LoadedImage> images) =>
       processLoadedImages(images, trimMode: image_util.TrimMode.transparent);
 
-  _clearImages() => setState((() => _loadedImages.clear()));
+  void _clearImages() => setState((() => _loadedImages.clear()));
 
-  _onLoadedPalettes(List<LoadedImage> images) =>
+  void _onLoadedPalettes(List<LoadedImage> images) =>
       setState(() => _loadedPalettes = images);
 
   Future<List<LoadedImage>> _processPalettes(List<LoadedImage> images) =>
       processLoadedImages(images,
           trimMode: image_util.TrimMode.bottomRightColor);
 
-  _clearPalettes() => setState((() => _loadedPalettes.clear()));
+  void _clearPalettes() => setState((() => _loadedPalettes.clear()));
+
+  Future<void> _processOutputImages() async {
+    // TODO
+    Future.delayed(const Duration(seconds: 2));
+  }
 }
 
 class _ListHeading extends StatelessWidget {
