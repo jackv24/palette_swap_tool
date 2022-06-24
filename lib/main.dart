@@ -87,14 +87,15 @@ class _MainPageState extends State<MainPage> {
     const columnPadding = 48.0;
 
     const fileListWidth = 200.0;
-    const scrollBarPadding = 12.0;
+    const previewHeight = 200.0;
 
+    // On desktop we need window buttons, since system window border is hidden
     Widget? flexibleSpace;
     if (isDesktop) {
       final windowButtonColors = WindowButtonColors(
         iconNormal: colorScheme.onBackground,
-        mouseOver: colorScheme.tertiary,
-        iconMouseOver: colorScheme.onTertiary,
+        mouseOver: colorScheme.surfaceVariant,
+        iconMouseOver: colorScheme.onSurfaceVariant,
       );
       final windowCloseButtonColors = WindowButtonColors(
         mouseOver: const Color(0xFFD32F2F),
@@ -151,34 +152,17 @@ class _MainPageState extends State<MainPage> {
                       processImages: _processImages,
                     ),
                     const SizedBox(height: headingPadding),
-                    Text(
-                      "${_loadedImages.length} files loaded:",
-                      style: theme.textTheme.labelLarge,
+                    _ListHeading(
+                      listCount: _loadedImages.length,
+                      onListClearPressed: _clearImages,
                     ),
                     const SizedBox(height: headingPadding),
                     Expanded(
                       child: SizedBox(
                         width: fileListWidth,
-                        child: ListView.builder(
-                          padding:
-                              const EdgeInsets.only(right: scrollBarPadding),
-                          itemBuilder: (context, index) {
-                            final image = _loadedImages[index];
-                            return Card(
-                              child: Column(
-                                children: [
-                                  Text(image.fileName),
-                                  Image.memory(
-                                    image.bytes,
-                                    height: 150,
-                                    fit: BoxFit.contain,
-                                    filterQuality: FilterQuality.none,
-                                  )
-                                ],
-                              ),
-                            );
-                          },
-                          itemCount: _loadedImages.length,
+                        child: _ImageListView(
+                          images: _loadedImages,
+                          itemHeight: 150,
                         ),
                       ),
                     ),
@@ -196,35 +180,20 @@ class _MainPageState extends State<MainPage> {
                         processImages: _processPalettes,
                       ),
                       const SizedBox(height: headingPadding),
-                      Text(
-                        "${_loadedPalettes.length} files loaded:",
-                        style: theme.textTheme.labelLarge,
+                      _ListHeading(
+                        listCount: _loadedPalettes.length,
+                        onListClearPressed: _clearPalettes,
                       ),
                       const SizedBox(height: headingPadding),
-                      ListView.builder(
-                        shrinkWrap: true,
-                        padding: const EdgeInsets.only(right: scrollBarPadding),
-                        itemBuilder: (context, index) {
-                          final image = _loadedPalettes[index];
-                          return Card(
-                            child: Column(
-                              children: [
-                                Text(image.fileName),
-                                Image.memory(
-                                  image.bytes,
-                                  height: 50,
-                                  fit: BoxFit.contain,
-                                  filterQuality: FilterQuality.none,
-                                )
-                              ],
-                            ),
-                          );
-                        },
-                        itemCount: _loadedPalettes.length,
+                      Flexible(
+                        child: _ImageListView(
+                          images: _loadedPalettes,
+                          itemHeight: 50,
+                        ),
                       ),
                       const SizedBox(height: sectionPadding),
                       Text("Preview", style: headerTextStyle),
-                      Expanded(child: Container()),
+                      const SizedBox(height: previewHeight),
                     ],
                   ),
                 ),
@@ -247,10 +216,84 @@ class _MainPageState extends State<MainPage> {
   Future<List<LoadedImage>> _processImages(List<LoadedImage> images) =>
       processLoadedImages(images, trimMode: image_util.TrimMode.transparent);
 
+  _clearImages() => setState((() => _loadedImages.clear()));
+
   _onLoadedPalettes(List<LoadedImage> images) =>
       setState(() => _loadedPalettes = images);
 
   Future<List<LoadedImage>> _processPalettes(List<LoadedImage> images) =>
       processLoadedImages(images,
           trimMode: image_util.TrimMode.bottomRightColor);
+
+  _clearPalettes() => setState((() => _loadedPalettes.clear()));
+}
+
+class _ListHeading extends StatelessWidget {
+  final int listCount;
+  final void Function() onListClearPressed;
+
+  const _ListHeading({
+    Key? key,
+    required this.listCount,
+    required this.onListClearPressed,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Text(
+          "$listCount files loaded",
+          style: theme.textTheme.labelLarge,
+        ),
+        const SizedBox(width: 8),
+        TextButton.icon(
+          onPressed: onListClearPressed,
+          icon: const Icon(Icons.clear_all),
+          label: const Text("Clear All"),
+        ),
+      ],
+    );
+  }
+}
+
+class _ImageListView extends StatelessWidget {
+  final List<LoadedImage> images;
+  final double? itemHeight;
+
+  const _ImageListView({
+    Key? key,
+    required this.images,
+    this.itemHeight,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    const scrollBarPadding = 12.0;
+
+    return ListView.builder(
+      primary: false,
+      shrinkWrap: true,
+      padding: const EdgeInsets.only(right: scrollBarPadding),
+      itemCount: images.length,
+      itemBuilder: (context, index) {
+        final image = images[index];
+        return Card(
+          child: Column(
+            children: [
+              Text(image.fileName),
+              Image.memory(
+                image.bytes,
+                height: itemHeight,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.none,
+              )
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
