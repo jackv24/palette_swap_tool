@@ -234,11 +234,21 @@ class MainPage extends StatelessWidget {
                       );
                     }),
                     const SizedBox(height: headingPadding),
-                    ElevatedButton.icon(
-                      onPressed: null,
-                      icon: const Icon(Icons.save),
-                      label: const Text("Save Sprites To Folder"),
-                    ),
+                    Consumer(builder: (context, ref, child) {
+                      final asyncSprites = ref.watch(
+                          outputImagesProvider(ImageCollectionType.outputSave));
+                      return ElevatedButton.icon(
+                        onPressed: asyncSprites.when(
+                          data: (images) {
+                            return () => _saveSpritesToFolder(images, ref);
+                          },
+                          error: (err, stack) => null,
+                          loading: () => null,
+                        ),
+                        icon: const Icon(Icons.save),
+                        label: const Text("Save Sprites To Folder"),
+                      );
+                    }),
                     const SizedBox(height: headingPadding),
                     Expanded(
                       child: SizedBox(
@@ -287,6 +297,28 @@ class MainPage extends StatelessWidget {
 
     // Write image bytes to chosen file location
     await File(result).writeAsBytes(paletteImage.bytes);
+  }
+
+  Future<void> _saveSpritesToFolder(
+      List<LoadedImage> outputImages, WidgetRef ref) async {
+    final initialDir = ref.read(previousFolderProvider);
+
+    final result = await FilePicker.platform
+        .getDirectoryPath(initialDirectory: initialDir);
+    if (result == null) return;
+
+    // Save folder location to open at next time
+    ref.read(previousFolderProvider.notifier).setValue(result);
+
+    List<Future<File>> waitFor = [];
+    for (final outputImage in outputImages) {
+      // Write image bytes to chosen file location
+      final path = "$result/${outputImage.fileName}";
+      waitFor.add(File(path).writeAsBytes(outputImage.bytes));
+    }
+
+    // Wait for all write operations at once after starting them
+    await Future.wait(waitFor);
   }
 }
 

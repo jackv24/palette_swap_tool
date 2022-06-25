@@ -108,7 +108,16 @@ final outputImagesProvider =
   List<LoadedImage> outputImages = [];
 
   for (final inputImage in inputImages) {
+    // New image to operate on in
+    final outputImage = inputImage.copyWith(
+        image: image_util.Image(
+      inputImage.image.width,
+      inputImage.image.height,
+      channels: inputImage.image.channels,
+    ));
+
     for (int i = 0; i < inputImage.image.data.length; i++) {
+      // Read pixel from INPUT image
       final pixel = inputImage.image.data[i];
       final opaquePixel = _discardPixelAlpha(pixel);
 
@@ -120,13 +129,14 @@ final outputImagesProvider =
       final alpha = image_util.getAlpha(pixel);
       final newPixel = image_util.getColor(paletteIndex, 0, 0, alpha);
 
-      inputImage.image.setPixel(i, 0, newPixel);
+      // Write new pixel into OUTPUT image
+      outputImage.image.setPixel(i, 0, newPixel);
     }
 
     // Add image to output list after pixels transformed
-    final outputImage =
-        _getTrimmedDisplayImage(inputImage, collectionType.displayTrimMode);
-    outputImages.add(outputImage);
+    final add =
+        _getTrimmedDisplayImage(outputImage, collectionType.displayTrimMode);
+    outputImages.add(add);
   }
 
   return outputImages;
