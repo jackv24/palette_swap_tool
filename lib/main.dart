@@ -168,7 +168,8 @@ class MainPage extends StatelessWidget {
                       const SizedBox(height: headingPadding),
                       Consumer(builder: (context, ref, child) {
                         final asyncImage = ref.watch(
-                            defaultPaletteProvider(PaletteImageType.display));
+                            defaultPaletteImageProvider(
+                                PaletteImageType.display));
                         return asyncImage.when(
                           data: (image) {
                             if (image == null) return const SizedBox.shrink();
@@ -227,7 +228,8 @@ class MainPage extends StatelessWidget {
                       child: SizedBox(
                         width: fileListWidth,
                         child: _ImageListView(
-                          imageProvider: outputImagesProvider,
+                          imageProvider: outputImagesProvider(
+                              ImageCollectionType.outputPreview),
                           itemHeight: fileListItemHeight,
                         ),
                       ),

@@ -25,34 +25,37 @@ final displayImagesProvider =
   final images = await ref.watch(decodedImagesProvider(collectionType).future);
   return images.map((image) {
     final trimMode = collectionType.displayTrimMode;
-    final trimmedImage = trimMode == null
-        ? image.image
-        : image_util.trim(image.image, mode: trimMode);
-
-    return LoadedImage(
-        fileName: image.fileName,
-        bytes: Uint8List.fromList(image_util.encodePng(trimmedImage)));
+    return _getTrimmedDisplayImage(image, trimMode);
   }).toList();
 });
 
+LoadedImage _getTrimmedDisplayImage(
+    DecodedImage inputImage, image_util.TrimMode? trimMode) {
+  final trimmedImage = trimMode == null
+      ? inputImage.image
+      : image_util.trim(inputImage.image, mode: trimMode);
+
+  return LoadedImage(
+      fileName: inputImage.fileName,
+      bytes: Uint8List.fromList(image_util.encodePng(trimmedImage)));
+}
+
 enum PaletteImageType { full, display }
 
-final defaultPaletteProvider =
-    FutureProvider.family<LoadedImage?, PaletteImageType>((ref, type) async {
+// 256 pixels wide because colours are 0-255
+const _paletteWidth = 256;
+
+final defaultPaletteProvider = FutureProvider<List<int>>((ref) async {
   final inputImages =
       await ref.watch(decodedImagesProvider(ImageCollectionType.input).future);
 
-  if (inputImages.isEmpty) return null;
+  if (inputImages.isEmpty) return [];
 
   // Extract all unique pixels from all loaded images
   List<int> uniquePixels = [];
   for (final inputImage in inputImages) {
     for (final pixel in inputImage.image.data) {
-      // Discard alpha of pixel
-      final red = image_util.getChannel(pixel, image_util.Channel.red);
-      final green = image_util.getChannel(pixel, image_util.Channel.green);
-      final blue = image_util.getChannel(pixel, image_util.Channel.blue);
-      final opaquePixel = image_util.getColor(red, green, blue);
+      final opaquePixel = _discardPixelAlpha(pixel);
 
       // Only add pixel to list if the same colour isn't already there
       if (uniquePixels.contains(opaquePixel)) continue;
@@ -60,13 +63,19 @@ final defaultPaletteProvider =
     }
   }
 
-  // Create colour palette image (256 pixels wide because colours are 0-255)
-  const width = 256;
+  return uniquePixels;
+});
+
+final defaultPaletteImageProvider =
+    FutureProvider.family<LoadedImage?, PaletteImageType>((ref, type) async {
+  final uniquePixels = await ref.watch(defaultPaletteProvider.future);
+
+  // Create colour palette image
   final writeImage =
-      image_util.Image(width, 1, channels: image_util.Channels.rgb);
+      image_util.Image(_paletteWidth, 1, channels: image_util.Channels.rgb);
 
   // Write palette colours into image
-  for (int i = 0; i < uniquePixels.length.clamp(0, width); i++) {
+  for (int i = 0; i < uniquePixels.length.clamp(0, _paletteWidth); i++) {
     writeImage.setPixel(i, 0, uniquePixels[i]);
   }
 
@@ -89,10 +98,46 @@ final defaultPaletteProvider =
   );
 });
 
-final outputImagesProvider = FutureProvider<List<LoadedImage>>((ref) async {
-  // TODO
-  return [];
+final outputImagesProvider =
+    FutureProvider.family<List<LoadedImage>, ImageCollectionType>(
+        (ref, collectionType) async {
+  final inputImages =
+      await ref.watch(decodedImagesProvider(ImageCollectionType.input).future);
+  final palette = await ref.watch(defaultPaletteProvider.future);
+
+  List<LoadedImage> outputImages = [];
+
+  for (final inputImage in inputImages) {
+    for (int i = 0; i < inputImage.image.data.length; i++) {
+      final pixel = inputImage.image.data[i];
+      final opaquePixel = _discardPixelAlpha(pixel);
+
+      // Get index of pixel in palette. Should always succeed since
+      // palette is generated from input images
+      final paletteIndex = palette.indexOf(opaquePixel);
+
+      // New pixel is encoded with palette index
+      final alpha = image_util.getAlpha(pixel);
+      final newPixel = image_util.getColor(paletteIndex, 0, 0, alpha);
+
+      inputImage.image.setPixel(i, 0, newPixel);
+    }
+
+    // Add image to output list after pixels transformed
+    final outputImage =
+        _getTrimmedDisplayImage(inputImage, collectionType.displayTrimMode);
+    outputImages.add(outputImage);
+  }
+
+  return outputImages;
 });
+
+int _discardPixelAlpha(int pixel) {
+  final red = image_util.getRed(pixel);
+  final green = image_util.getGreen(pixel);
+  final blue = image_util.getBlue(pixel);
+  return image_util.getColor(red, green, blue);
+}
 
 Future<List<DecodedImage>> _decodeLoadedImages(List<LoadedImage> images) async {
   final processedImages = await Future.wait(images.map((loadedImage) async {
@@ -111,7 +156,8 @@ Future<List<DecodedImage>> _decodeLoadedImages(List<LoadedImage> images) async {
 enum ImageCollectionType {
   input(displayTrimMode: image_util.TrimMode.transparent),
   palette(displayTrimMode: image_util.TrimMode.bottomRightColor),
-  output;
+  outputPreview(displayTrimMode: image_util.TrimMode.transparent),
+  outputSave;
 
   const ImageCollectionType({this.displayTrimMode});
 
