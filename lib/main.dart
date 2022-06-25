@@ -30,8 +30,8 @@ void main() {
 
   if (isDesktop) {
     doWhenWindowReady(() {
-      appWindow.minSize = const Size(600, 200);
-      appWindow.size = const Size(800, 600);
+      appWindow.minSize = const Size(800, 600);
+      appWindow.size = const Size(900, 650);
       appWindow.alignment = Alignment.center;
       appWindow.title = appTitle;
       appWindow.show();
@@ -83,7 +83,6 @@ class MainPage extends StatelessWidget {
     const fileListWidth = 200.0;
     const fileListItemHeight = 150.0;
     const paletteListItemHeight = 50.0;
-    const previewHeight = 300.0;
 
     // On desktop we need window buttons, since system window border is hidden
     Widget flexibleSpace;
@@ -150,8 +149,9 @@ class MainPage extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Flexible(
+                    child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text("Input Sprites", style: headerTextStyle),
                     const SizedBox(height: headingPadding),
@@ -172,11 +172,12 @@ class MainPage extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
+                )),
                 const SizedBox(width: columnPadding),
-                Expanded(
+                Flexible(
+                  flex: 2,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text("Generate Palette", style: headerTextStyle),
                       const SizedBox(height: headingPadding),
@@ -207,71 +208,87 @@ class MainPage extends StatelessWidget {
                       _ListHeading(
                           loadedImagesProvider(ImageCollectionType.palette)),
                       const SizedBox(height: headingPadding),
-                      Flexible(
-                        child: _ImageListView(
-                          imageProvider: displayImagesProvider(
-                              ImageCollectionType.palette),
-                          itemHeight: paletteListItemHeight,
-                        ),
+                      _ImageListView(
+                        imageProvider:
+                            displayImagesProvider(ImageCollectionType.palette),
+                        itemHeight: paletteListItemHeight,
                       ),
                       const SizedBox(height: sectionPadding),
                       Text("Preview", style: headerTextStyle),
-                      const SizedBox(height: previewHeight),
+                      Expanded(
+                        child: Consumer(builder: (context, ref, child) {
+                          final asyncImage = ref.watch(previewImageProvider);
+                          return asyncImage.when(
+                            data: (image) {
+                              if (image == null) return const SizedBox.shrink();
+
+                              return _ImageListItem(
+                                image: image,
+                              );
+                            },
+                            error: (err, stack) => ErrorWidget(err),
+                            loading: () => const Center(
+                                child: CircularProgressIndicator()),
+                          );
+                        }),
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(width: columnPadding),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Output Files", style: headerTextStyle),
-                    const SizedBox(height: headingPadding),
-                    Consumer(builder: (context, ref, child) {
-                      final asyncPalette = ref.watch(
-                          defaultPaletteImageProvider(PaletteImageType.full));
-                      return ElevatedButton.icon(
-                        // Palette save button only work when there is a palette to save
-                        onPressed: asyncPalette.when(
-                          data: (paletteImage) {
-                            if (paletteImage == null) return null;
-                            return () =>
-                                _saveGeneratedPalette(paletteImage, ref);
-                          },
-                          error: (err, stack) => null,
-                          loading: () => null,
-                        ),
-                        icon: const Icon(Icons.save),
-                        label: const Text("Save Generated Palette"),
-                      );
-                    }),
-                    const SizedBox(height: headingPadding),
-                    Consumer(builder: (context, ref, child) {
-                      final asyncSprites = ref.watch(
-                          outputImagesProvider(ImageCollectionType.outputSave));
-                      return ElevatedButton.icon(
-                        onPressed: asyncSprites.when(
-                          data: (images) {
-                            return () => _saveSpritesToFolder(images, ref);
-                          },
-                          error: (err, stack) => null,
-                          loading: () => null,
-                        ),
-                        icon: const Icon(Icons.save),
-                        label: const Text("Save Sprites To Folder"),
-                      );
-                    }),
-                    const SizedBox(height: headingPadding),
-                    Expanded(
-                      child: SizedBox(
-                        width: fileListWidth,
-                        child: _ImageListView(
-                          imageProvider: outputImagesProvider(
-                              ImageCollectionType.outputPreview),
-                          itemHeight: fileListItemHeight,
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text("Output Files", style: headerTextStyle),
+                      const SizedBox(height: headingPadding),
+                      Consumer(builder: (context, ref, child) {
+                        final asyncPalette = ref.watch(
+                            defaultPaletteImageProvider(PaletteImageType.full));
+                        return ElevatedButton.icon(
+                          // Palette save button only work when there is a palette to save
+                          onPressed: asyncPalette.when(
+                            data: (paletteImage) {
+                              if (paletteImage == null) return null;
+                              return () =>
+                                  _saveGeneratedPalette(paletteImage, ref);
+                            },
+                            error: (err, stack) => null,
+                            loading: () => null,
+                          ),
+                          icon: const Icon(Icons.save),
+                          label: const Text("Save Generated Palette"),
+                        );
+                      }),
+                      const SizedBox(height: headingPadding),
+                      Consumer(builder: (context, ref, child) {
+                        final asyncSprites = ref.watch(outputImagesProvider(
+                            ImageCollectionType.outputSave));
+                        return ElevatedButton.icon(
+                          onPressed: asyncSprites.when(
+                            data: (images) {
+                              return () => _saveSpritesToFolder(images, ref);
+                            },
+                            error: (err, stack) => null,
+                            loading: () => null,
+                          ),
+                          icon: const Icon(Icons.save),
+                          label: const Text("Save Sprites To Folder"),
+                        );
+                      }),
+                      const SizedBox(height: headingPadding),
+                      Expanded(
+                        child: SizedBox(
+                          width: fileListWidth,
+                          child: _ImageListView(
+                            imageProvider: outputImagesProvider(
+                                ImageCollectionType.outputPreview),
+                            itemHeight: fileListItemHeight,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -340,7 +357,7 @@ class _ListHeading extends ConsumerWidget {
 
     final theme = Theme.of(context);
 
-    return Row(
+    return Wrap(
       children: [
         Text(
           "${list.length} files loaded",
@@ -406,17 +423,21 @@ class _ImageListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Column(
-        children: [
-          Text(image.fileName),
-          Image.memory(
-            image.bytes,
-            height: height,
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.none,
-          )
-        ],
+    return SizedBox(
+      height: height,
+      child: Card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(child: Text(image.fileName)),
+            Expanded(
+                child: Image.memory(
+              image.bytes,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.none,
+            )),
+          ],
+        ),
       ),
     );
   }

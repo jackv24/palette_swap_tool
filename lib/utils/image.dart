@@ -70,6 +70,8 @@ final defaultPaletteImageProvider =
     FutureProvider.family<LoadedImage?, PaletteImageType>((ref, type) async {
   final uniquePixels = await ref.watch(defaultPaletteProvider.future);
 
+  if (uniquePixels.isEmpty) return null;
+
   // Create colour palette image
   final writeImage =
       image_util.Image(_paletteWidth, 1, channels: image_util.Channels.rgb);
@@ -140,6 +142,15 @@ final outputImagesProvider =
   }
 
   return outputImages;
+});
+
+final previewImageProvider = FutureProvider<LoadedImage?>((ref) async {
+  final images =
+      await ref.watch(displayImagesProvider(ImageCollectionType.input).future);
+  if (images.isEmpty) return null;
+
+  // TODO: Display selected
+  return images[0];
 });
 
 int _discardPixelAlpha(int pixel) {

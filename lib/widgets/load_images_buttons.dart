@@ -16,7 +16,7 @@ class LoadImagesButtons extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final initialDir = ref.watch(previousFolderProvider);
 
-    return Row(
+    return Wrap(
       children: [
         TextButton.icon(
           onPressed: () => _pickInputFolder(initialDir, ref),
