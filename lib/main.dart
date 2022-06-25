@@ -5,7 +5,6 @@ import 'package:palette_swap_tool/utils/settings.dart';
 import 'package:palette_swap_tool/widgets/load_images_buttons.dart';
 import 'package:palette_swap_tool/widgets/theme_mode_button.dart';
 import 'package:palette_swap_tool/utils/image.dart';
-import 'package:image/image.dart' as image_util;
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 
 const appTitle = "Palette Swap Tool";
@@ -140,7 +139,7 @@ class MainPage extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Input Files", style: headerTextStyle),
+                    Text("Input Sprites", style: headerTextStyle),
                     const SizedBox(height: headingPadding),
                     LoadImagesButtons(
                         loadedImagesProvider(ImageCollectionType.input)),
@@ -165,7 +164,27 @@ class MainPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Palettes", style: headerTextStyle),
+                      Text("Generate Palette", style: headerTextStyle),
+                      const SizedBox(height: headingPadding),
+                      Consumer(builder: (context, ref, child) {
+                        final asyncImage = ref.watch(
+                            defaultPaletteProvider(PaletteImageType.display));
+                        return asyncImage.when(
+                          data: (image) {
+                            if (image == null) return const SizedBox.shrink();
+
+                            return _ImageListItem(
+                              image: image,
+                              height: paletteListItemHeight,
+                            );
+                          },
+                          error: (err, stack) => ErrorWidget(err),
+                          loading: () =>
+                              const Center(child: CircularProgressIndicator()),
+                        );
+                      }),
+                      const SizedBox(height: sectionPadding),
+                      Text("Other Palettes", style: headerTextStyle),
                       const SizedBox(height: headingPadding),
                       LoadImagesButtons(
                           loadedImagesProvider(ImageCollectionType.palette)),
@@ -186,6 +205,7 @@ class MainPage extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(width: columnPadding),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -193,14 +213,14 @@ class MainPage extends StatelessWidget {
                     const SizedBox(height: headingPadding),
                     ElevatedButton.icon(
                       onPressed: null,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text("Refresh"),
+                      icon: const Icon(Icons.save),
+                      label: const Text("Save Generated Palette"),
                     ),
                     const SizedBox(height: headingPadding),
                     ElevatedButton.icon(
                       onPressed: null,
                       icon: const Icon(Icons.save),
-                      label: const Text("Output To Folder"),
+                      label: const Text("Save Sprites To Folder"),
                     ),
                     const SizedBox(height: headingPadding),
                     Expanded(
@@ -284,20 +304,39 @@ class _ImageListView extends ConsumerWidget {
         itemCount: images.length,
         itemBuilder: (context, index) {
           final image = images[index];
-          return Card(
-            child: Column(
-              children: [
-                Text(image.fileName),
-                Image.memory(
-                  image.bytes,
-                  height: itemHeight,
-                  fit: BoxFit.contain,
-                  filterQuality: FilterQuality.none,
-                )
-              ],
-            ),
+          return _ImageListItem(
+            image: image,
+            height: itemHeight,
           );
         },
+      ),
+    );
+  }
+}
+
+class _ImageListItem extends StatelessWidget {
+  final LoadedImage image;
+  final double? height;
+
+  const _ImageListItem({
+    Key? key,
+    required this.image,
+    this.height,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Column(
+        children: [
+          Text(image.fileName),
+          Image.memory(
+            image.bytes,
+            height: height,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.none,
+          )
+        ],
       ),
     );
   }
