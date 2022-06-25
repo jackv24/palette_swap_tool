@@ -26,9 +26,9 @@ final themeModeProvider =
 });
 
 final previousFolderProvider =
-    StateNotifierProvider<HiveSettingNotifier<String>, String>((ref) {
+    StateNotifierProvider<HiveSettingNotifier<String?>, String?>((ref) {
   final box = ref.watch(_settingsBoxProvider);
-  return HiveSettingNotifier(box.value, 'previousFolderPath', '');
+  return HiveSettingNotifier(box.value, 'previousFolderPath', null);
 });
 
 class HiveSettingNotifier<T> extends StateNotifier<T> {

@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -212,11 +215,24 @@ class MainPage extends StatelessWidget {
                   children: [
                     Text("Output Files", style: headerTextStyle),
                     const SizedBox(height: headingPadding),
-                    ElevatedButton.icon(
-                      onPressed: null,
-                      icon: const Icon(Icons.save),
-                      label: const Text("Save Generated Palette"),
-                    ),
+                    Consumer(builder: (context, ref, child) {
+                      final asyncPalette = ref.watch(
+                          defaultPaletteImageProvider(PaletteImageType.full));
+                      return ElevatedButton.icon(
+                        // Palette save button only work when there is a palette to save
+                        onPressed: asyncPalette.when(
+                          data: (paletteImage) {
+                            if (paletteImage == null) return null;
+                            return () =>
+                                _saveGeneratedPalette(paletteImage, ref);
+                          },
+                          error: (err, stack) => null,
+                          loading: () => null,
+                        ),
+                        icon: const Icon(Icons.save),
+                        label: const Text("Save Generated Palette"),
+                      );
+                    }),
                     const SizedBox(height: headingPadding),
                     ElevatedButton.icon(
                       onPressed: null,
@@ -247,6 +263,30 @@ class MainPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _saveGeneratedPalette(
+      LoadedImage paletteImage, WidgetRef ref) async {
+    final initialDir = ref.read(previousFolderProvider);
+
+    // Add file extension to file name if not there
+    final fileName = paletteImage.fileName.endsWith(".png")
+        ? paletteImage.fileName
+        : "${paletteImage.fileName}.png";
+
+    final result = await FilePicker.platform.saveFile(
+      initialDirectory: initialDir,
+      type: FileType.custom,
+      allowedExtensions: ["png"],
+      fileName: fileName,
+    );
+    if (result == null) return;
+
+    // Save folder location to open at next time
+    ref.read(previousFolderProvider.notifier).setValue(result);
+
+    // Write image bytes to chosen file location
+    await File(result).writeAsBytes(paletteImage.bytes);
   }
 }
 

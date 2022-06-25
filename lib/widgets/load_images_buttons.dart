@@ -14,12 +14,7 @@ class LoadImagesButtons extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    String? initialDir = ref.watch(previousFolderProvider);
-
-    // Make null if empty to not set on dialog open
-    if (initialDir != null && initialDir.isEmpty) {
-      initialDir = null;
-    }
+    final initialDir = ref.watch(previousFolderProvider);
 
     return Row(
       children: [
