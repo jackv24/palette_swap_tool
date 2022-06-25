@@ -86,7 +86,7 @@ class MainPage extends StatelessWidget {
     const previewHeight = 300.0;
 
     // On desktop we need window buttons, since system window border is hidden
-    Widget? flexibleSpace;
+    Widget flexibleSpace;
     if (isDesktop) {
       final windowButtonColors = WindowButtonColors(
         iconNormal: colorScheme.onBackground,
@@ -105,6 +105,11 @@ class MainPage extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            Container(
+              alignment: Alignment.topRight,
+              padding: const EdgeInsets.fromLTRB(0, 8, 12, 0),
+              child: const ThemeModeButton(),
+            ),
             Column(
               children: [
                 WindowTitleBarBox(
@@ -121,6 +126,12 @@ class MainPage extends StatelessWidget {
           ],
         ),
       ]);
+    } else {
+      flexibleSpace = Container(
+        alignment: Alignment.topRight,
+        padding: const EdgeInsets.fromLTRB(0, 8, 12, 0),
+        child: const ThemeModeButton(),
+      );
     }
 
     return Scaffold(
@@ -264,11 +275,6 @@ class MainPage extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          Container(
-            alignment: Alignment.bottomRight,
-            padding: const EdgeInsets.all(12.0),
-            child: const ThemeModeButton(),
           ),
         ],
       ),
