@@ -2,6 +2,9 @@
 
 A simple tool for generating palette swap LUTs for use in palette swap shaders, etc.
 
+![The UI in action](./promo/example_light.png#gh-light-mode-only)
+![The UI in action](./promo/example_dark.png#gh-dark-mode-only)
+
 ## Example Unity shader
 
 The tool outputs images that have LUT UVs encoded in the Red and Green channels. A shader can be used to apply the colours in the LUTs back to the sprite.
