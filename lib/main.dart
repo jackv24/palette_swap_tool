@@ -167,6 +167,7 @@ class MainPage extends StatelessWidget {
                         child: _ImageListView(
                           imageProvider:
                               displayImagesProvider(ImageCollectionType.input),
+                          selectedProvider: selectedInputImageProvider,
                           itemHeight: fileListItemHeight,
                         ),
                       ),
@@ -179,9 +180,12 @@ class MainPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text("Generate Palette", style: headerTextStyle),
+                      Text("Default Palette", style: headerTextStyle),
                       const SizedBox(height: headingPadding),
                       Consumer(builder: (context, ref, child) {
+                        final selectedIndex =
+                            ref.watch(selectedPaletteIndexProvider);
+
                         final asyncImage = ref.watch(
                             defaultPaletteImageProvider(
                                 PaletteImageType.display));
@@ -192,6 +196,12 @@ class MainPage extends StatelessWidget {
                             return _ImageListItem(
                               image: image,
                               height: paletteListItemHeight,
+                              isSelected: selectedIndex < 0,
+                              onTap: () {
+                                ref
+                                    .read(selectedPaletteIndexProvider.notifier)
+                                    .setValue(-1);
+                              },
                             );
                           },
                           error: (err, stack) => ErrorWidget(err),
@@ -212,6 +222,7 @@ class MainPage extends StatelessWidget {
                         imageProvider:
                             displayImagesProvider(ImageCollectionType.palette),
                         itemHeight: paletteListItemHeight,
+                        selectedProvider: selectedPaletteIndexProvider,
                       ),
                       const SizedBox(height: sectionPadding),
                       Text("Preview", style: headerTextStyle),
@@ -378,17 +389,22 @@ class _ListHeading extends ConsumerWidget {
 
 class _ImageListView extends ConsumerWidget {
   final FutureProvider<List<LoadedImage>> imageProvider;
+  final StateNotifierProvider<IntNotifier, int>? selectedProvider;
   final double? itemHeight;
 
   const _ImageListView({
     Key? key,
     required this.imageProvider,
+    this.selectedProvider,
     this.itemHeight,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     const scrollBarPadding = 12.0;
+
+    final selProv = selectedProvider;
+    final selectedIndex = selProv != null ? ref.watch(selProv) : -1;
 
     final asyncImages = ref.watch(imageProvider);
     return asyncImages.when(
@@ -404,6 +420,12 @@ class _ImageListView extends ConsumerWidget {
           return _ImageListItem(
             image: image,
             height: itemHeight,
+            isSelected: selectedIndex == index,
+            onTap: selProv != null
+                ? () {
+                    ref.read(selProv.notifier).setValue(index);
+                  }
+                : null,
           );
         },
       ),
@@ -414,11 +436,15 @@ class _ImageListView extends ConsumerWidget {
 class _ImageListItem extends StatelessWidget {
   final LoadedImage image;
   final double? height;
+  final bool isSelected;
+  final void Function()? onTap;
 
   const _ImageListItem({
     Key? key,
     required this.image,
     this.height,
+    this.isSelected = false,
+    this.onTap,
   }) : super(key: key);
 
   @override
@@ -426,17 +452,22 @@ class _ImageListItem extends StatelessWidget {
     return SizedBox(
       height: height,
       child: Card(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(child: Text(image.fileName)),
-            Expanded(
-                child: Image.memory(
-              image.bytes,
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.none,
-            )),
-          ],
+        clipBehavior: Clip.antiAlias,
+        elevation: isSelected ? 10 : null,
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(child: Text(image.fileName)),
+              Expanded(
+                  child: Image.memory(
+                image.bytes,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.none,
+              )),
+            ],
+          ),
         ),
       ),
     );

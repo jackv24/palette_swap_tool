@@ -40,6 +40,16 @@ LoadedImage _getTrimmedDisplayImage(
       bytes: Uint8List.fromList(image_util.encodePng(trimmedImage)));
 }
 
+final selectedInputImageProvider =
+    StateNotifierProvider<IntNotifier, int>((ref) {
+  return IntNotifier(0);
+});
+
+final selectedPaletteIndexProvider =
+    StateNotifierProvider<IntNotifier, int>((ref) {
+  return IntNotifier(-1);
+});
+
 enum PaletteImageType { full, display }
 
 // 256 pixels wide because colours are 0-255
@@ -145,12 +155,64 @@ final outputImagesProvider =
 });
 
 final previewImageProvider = FutureProvider<LoadedImage?>((ref) async {
-  final images =
-      await ref.watch(displayImagesProvider(ImageCollectionType.input).future);
-  if (images.isEmpty) return null;
+  final inputImages =
+      await ref.watch(decodedImagesProvider(ImageCollectionType.input).future);
 
-  // TODO: Display selected
-  return images[0];
+  if (inputImages.isEmpty) return null;
+
+  final sourcePalette = await ref.watch(defaultPaletteProvider.future);
+
+  final paletteIndex = ref.watch(selectedPaletteIndexProvider);
+  final List<int> palette;
+  if (paletteIndex < 0) {
+    palette = sourcePalette;
+  } else {
+    // Other palettes need to be taken from loaded palette image
+    final paletteImages = await ref
+        .watch(decodedImagesProvider(ImageCollectionType.palette).future);
+
+    // If palettes have been cleared we may be out of bounds
+    if (paletteIndex >= paletteImages.length) return null;
+
+    final paletteImage = paletteImages[paletteIndex].image;
+    palette = paletteImage.data.toList();
+  }
+
+  final index = ref.watch(selectedInputImageProvider);
+  final inputImage = inputImages[index];
+
+  // New image to operate on
+  final outputImage = image_util.Image(
+    inputImage.image.width,
+    inputImage.image.height,
+    channels: inputImage.image.channels,
+  );
+
+  for (int i = 0; i < inputImage.image.data.length; i++) {
+    // Read pixel from INPUT image
+    final pixel = inputImage.image.data[i];
+    final opaquePixel = _discardPixelAlpha(pixel);
+
+    // Get index of pixel in palette
+    final paletteIndex = sourcePalette.indexOf(opaquePixel);
+
+    // Get pixel from palette if it is in range
+    final palettePixel = paletteIndex >= 0 && paletteIndex < palette.length
+        ? palette[paletteIndex]
+        : 0;
+
+    // New pixel is from palette at index
+    final alpha = image_util.getAlpha(pixel);
+    final newPixel = image_util.setAlpha(palettePixel, alpha);
+
+    // Write new pixel into OUTPUT image
+    outputImage.setPixel(i, 0, newPixel);
+  }
+
+  return LoadedImage(
+    fileName: inputImage.fileName,
+    bytes: Uint8List.fromList(image_util.encodePng(outputImage)),
+  );
 });
 
 int _discardPixelAlpha(int pixel) {
@@ -211,4 +273,10 @@ class DecodedImage with _$DecodedImage {
     required String fileName,
     required image_util.Image image,
   }) = _DecodedImage;
+}
+
+class IntNotifier extends StateNotifier<int> {
+  IntNotifier(super.state);
+
+  void setValue(int newValue) => state = newValue;
 }
