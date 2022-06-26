@@ -53,7 +53,7 @@ class LoadImagesButtons extends ConsumerWidget {
       );
     }).toList();
 
-    await _doLoad(filesAsBytes, ref);
+    _doLoad(filesAsBytes, ref);
   }
 
   Future<void> _pickInputFiles(String? initialDirectory, WidgetRef ref) async {
@@ -84,10 +84,10 @@ class LoadImagesButtons extends ConsumerWidget {
             ))
         .toList();
 
-    await _doLoad(filesAsBytes, ref);
+    _doLoad(filesAsBytes, ref);
   }
 
-  Future<void> _doLoad(List<LoadedImage> images, WidgetRef ref) async {
+  void _doLoad(List<LoadedImage> images, WidgetRef ref) {
     ref.read(updateProvider.notifier).update(images);
   }
 }

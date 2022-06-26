@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -55,14 +56,42 @@ enum PaletteImageType { full, display }
 // 256 pixels wide because colours are 0-255
 const _paletteWidth = 256;
 
+final loadedInputPaletteProvider =
+    StateNotifierProvider<LoadedImageNotifier, LoadedImage?>((ref) {
+  return LoadedImageNotifier(null);
+});
+
+final decodedInputPaletteProvider = FutureProvider<DecodedImage?>((ref) async {
+  final image = ref.watch(loadedInputPaletteProvider);
+  if (image == null) return null;
+  return await _decodeLoadedImage(image);
+});
+
+final displayInputPaletteProvider = FutureProvider<LoadedImage?>((ref) async {
+  final image = await ref.watch(decodedInputPaletteProvider.future);
+  if (image == null) return null;
+  return _getTrimmedDisplayImage(image, image_util.TrimMode.bottomRightColor);
+});
+
 final defaultPaletteProvider = FutureProvider<List<int>>((ref) async {
+  List<int> uniquePixels = [];
+
+  // Load base palette into pixel list to maintain ordering
+  final basePalette = await ref.watch(decodedInputPaletteProvider.future);
+  if (basePalette != null) {
+    for (final pixel in basePalette.image.data) {
+      final opaquePixel = _discardPixelAlpha(pixel);
+      // Add without checking if unique - must maintain order!
+      uniquePixels.add(opaquePixel);
+    }
+  }
+
   final inputImages =
       await ref.watch(decodedImagesProvider(ImageCollectionType.input).future);
 
   if (inputImages.isEmpty) return [];
 
   // Extract all unique pixels from all loaded images
-  List<int> uniquePixels = [];
   for (final inputImage in inputImages) {
     for (final pixel in inputImage.image.data) {
       final opaquePixel = _discardPixelAlpha(pixel);
@@ -223,17 +252,18 @@ int _discardPixelAlpha(int pixel) {
 }
 
 Future<List<DecodedImage>> _decodeLoadedImages(List<LoadedImage> images) async {
-  final processedImages = await Future.wait(images.map((loadedImage) async {
-    final image = await compute(image_util.decodeImage, loadedImage.bytes);
-    if (image == null) return null;
-    return DecodedImage(
-      fileName: loadedImage.fileName,
-      image: image,
-    );
-  }));
-
+  final processedImages = await Future.wait(images.map(_decodeLoadedImage));
   final successfulImages = processedImages.whereType<DecodedImage>();
   return successfulImages.toList();
+}
+
+Future<DecodedImage?> _decodeLoadedImage(LoadedImage loadedImage) async {
+  final image = await compute(image_util.decodeImage, loadedImage.bytes);
+  if (image == null) return null;
+  return DecodedImage(
+    fileName: loadedImage.fileName,
+    image: image,
+  );
 }
 
 enum ImageCollectionType {
@@ -264,6 +294,14 @@ class LoadedImagesNotifier extends StateNotifier<List<LoadedImage>> {
 
   void clear() {
     state = [];
+  }
+}
+
+class LoadedImageNotifier extends StateNotifier<LoadedImage?> {
+  LoadedImageNotifier(super.state);
+
+  void update(LoadedImage? image) {
+    state = image;
   }
 }
 

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palette_swap_tool/utils/settings.dart';
+import 'package:palette_swap_tool/widgets/load_image_button.dart';
 import 'package:palette_swap_tool/widgets/load_images_buttons.dart';
 import 'package:palette_swap_tool/widgets/theme_mode_button.dart';
 import 'package:palette_swap_tool/utils/image.dart';
@@ -75,6 +76,7 @@ class MainPage extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     final headerTextStyle = theme.textTheme.titleLarge;
+    final header2TextStyle = theme.textTheme.titleMedium;
 
     const headingPadding = 8.0;
     const sectionPadding = 32.0;
@@ -181,6 +183,51 @@ class MainPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text("Default Palette", style: headerTextStyle),
+                      const SizedBox(height: headingPadding),
+                      Wrap(
+                        children: [
+                          Text("Loaded Base Palette", style: header2TextStyle),
+                          LoadImageButton(loadedInputPaletteProvider),
+                          Consumer(
+                            builder: (context, ref, child) {
+                              final palette =
+                                  ref.watch(loadedInputPaletteProvider);
+                              return TextButton.icon(
+                                onPressed: palette != null
+                                    ? () {
+                                        ref
+                                            .read(loadedInputPaletteProvider
+                                                .notifier)
+                                            .update(null);
+                                      }
+                                    : null,
+                                icon: const Icon(Icons.clear_all),
+                                label: const Text("Clear"),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: headingPadding),
+                      Consumer(builder: (context, ref, child) {
+                        final asyncImage =
+                            ref.watch(displayInputPaletteProvider);
+                        return asyncImage.when(
+                          data: (image) {
+                            if (image == null) return const SizedBox.shrink();
+
+                            return _ImageListItem(
+                              image: image,
+                              height: paletteListItemHeight,
+                            );
+                          },
+                          error: (err, stack) => ErrorWidget(err),
+                          loading: () =>
+                              const Center(child: CircularProgressIndicator()),
+                        );
+                      }),
+                      const SizedBox(height: headingPadding),
+                      Text("Generated Palette", style: header2TextStyle),
                       const SizedBox(height: headingPadding),
                       Consumer(builder: (context, ref, child) {
                         final selectedIndex =
@@ -376,9 +423,11 @@ class _ListHeading extends ConsumerWidget {
         ),
         const SizedBox(width: 8),
         TextButton.icon(
-          onPressed: () {
-            ref.read(listProvider.notifier).clear();
-          },
+          onPressed: list.isNotEmpty
+              ? () {
+                  ref.read(listProvider.notifier).clear();
+                }
+              : null,
           icon: const Icon(Icons.clear_all),
           label: const Text("Clear All"),
         ),
@@ -449,11 +498,20 @@ class _ImageListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double? elevation;
+    if (isSelected) {
+      elevation = 5;
+    } else if (onTap != null) {
+      elevation = 1;
+    } else {
+      elevation = 0.5;
+    }
+
     return SizedBox(
       height: height,
       child: Card(
         clipBehavior: Clip.antiAlias,
-        elevation: isSelected ? 10 : null,
+        elevation: elevation,
         child: InkWell(
           onTap: onTap,
           child: Column(
