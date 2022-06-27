@@ -17,6 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      # Set build name conditionally
+      - name: Set Build name
+        run: |
+          case $GITHUB_REF in
+            "refs/tags/"*) echo "BUILD_NAME=${GITHUB_REF/refs\/tags\/v}" >> $GITHUB_ENV ;;
+            *) echo "BUILD_NAME='0.0.0'" >> $GITHUB_ENV ;;
+          esac
       - uses: subosito/flutter-action@v1
         with:
           channel: 'stable'
@@ -30,7 +37,7 @@ jobs:
       - name: Enable linux build
         run: flutter config --enable-linux-desktop
       - name: Build artifacts
-        run: flutter build linux --release -v
+        run: flutter build linux --release -v --dart-define BUILD_NAME=$BUILD_NAME
       - name: Archive Release
         uses: thedoctor0/zip-release@master
         with:
@@ -49,6 +56,22 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
+      # Set build name conditionally
+      - name: Set Build name
+        run: |
+          $input = 'refs/tags/v0.1.0';
+          $result = switch -Regex ( $input )
+          {
+              'refs/tags/v'
+              {
+                  $input | Select-String -Pattern '(refs/tags/v)(.*)' -AllMatches | % {$_.matches.groups[2].value}
+              }
+              default
+              {
+                  '0.0.0'
+              }
+          };
+          echo "BUILD_NAME='$result'" >> $env:GITHUB_ENV;
       - uses: subosito/flutter-action@v1
         with:
           channel: 'stable'
@@ -60,7 +83,7 @@ jobs:
       - name: Enable windows build
         run: flutter config --enable-windows-desktop
       - name: Build artifacts
-        run: flutter build windows --release -v
+        run: flutter build windows --release -v --dart-define BUILD_NAME=$BUILD_NAME
       - name: Archive Release
         uses: thedoctor0/zip-release@master
         with:
@@ -97,7 +120,7 @@ jobs:
       - name: Enable macOS build
         run: flutter config --enable-macos-desktop
       - name: Build artifacts
-        run: flutter build macos --release -v --build-name=$BUILD_NAME
+        run: flutter build macos --release -v --build-name=$BUILD_NAME --dart-define BUILD_NAME=$BUILD_NAME
       - name: Move app folder to be zipped alone
         run: |
           mkdir build/macos/Build/Products/Release/zip/

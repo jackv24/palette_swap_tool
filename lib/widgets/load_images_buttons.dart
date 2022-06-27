@@ -21,12 +21,12 @@ class LoadImagesButtons extends ConsumerWidget {
         TextButton.icon(
           onPressed: () => _pickInputFolder(initialDir, ref),
           icon: const Icon(Icons.folder_open),
-          label: const Text("Open Folder"),
+          label: const Text('Open Folder'),
         ),
         TextButton.icon(
           onPressed: () => _pickInputFiles(initialDir, ref),
           icon: const Icon(Icons.file_open),
-          label: const Text("Open Files"),
+          label: const Text('Open Files'),
         ),
       ],
     );

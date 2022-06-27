@@ -11,8 +11,9 @@ import 'package:palette_swap_tool/widgets/load_images_buttons.dart';
 import 'package:palette_swap_tool/widgets/theme_mode_button.dart';
 import 'package:palette_swap_tool/utils/image.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:palette_swap_tool/widgets/update_icon.dart';
 
-const appTitle = "Palette Swap Tool";
+const appTitle = 'Palette Swap Tool';
 
 bool get isDesktop {
   if (kIsWeb) return false;
@@ -114,7 +115,16 @@ class MainPage extends StatelessWidget {
             Container(
               alignment: Alignment.topRight,
               padding: const EdgeInsets.fromLTRB(0, 8, 12, 0),
-              child: const ThemeModeButton(),
+              child: UpdateIcon(
+                color: colorScheme.tertiary,
+              ),
+            ),
+            Container(
+              alignment: Alignment.topRight,
+              padding: const EdgeInsets.fromLTRB(0, 8, 12, 0),
+              child: ThemeModeButton(
+                color: colorScheme.tertiary,
+              ),
             ),
             Column(
               children: [
@@ -160,7 +170,7 @@ class MainPage extends StatelessWidget {
                     child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text("Input Sprites", style: headerTextStyle),
+                    Text('Input Sprites', style: headerTextStyle),
                     const SizedBox(height: headingPadding),
                     LoadImagesButtons(
                         loadedImagesProvider(ImageCollectionType.input)),
@@ -187,11 +197,11 @@ class MainPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text("Default Palette", style: headerTextStyle),
+                      Text('Default Palette', style: headerTextStyle),
                       const SizedBox(height: headingPadding),
                       Wrap(
                         children: [
-                          Text("Loaded Base Palette", style: header2TextStyle),
+                          Text('Loaded Base Palette', style: header2TextStyle),
                           LoadImageButton(loadedInputPaletteProvider),
                           Consumer(
                             builder: (context, ref, child) {
@@ -207,7 +217,7 @@ class MainPage extends StatelessWidget {
                                       }
                                     : null,
                                 icon: const Icon(Icons.clear_all),
-                                label: const Text("Clear"),
+                                label: const Text('Clear'),
                               );
                             },
                           ),
@@ -232,7 +242,7 @@ class MainPage extends StatelessWidget {
                         );
                       }),
                       const SizedBox(height: headingPadding),
-                      Text("Generated Palette", style: header2TextStyle),
+                      Text('Generated Palette', style: header2TextStyle),
                       const SizedBox(height: headingPadding),
                       Consumer(builder: (context, ref, child) {
                         final selectedIndex =
@@ -262,7 +272,7 @@ class MainPage extends StatelessWidget {
                         );
                       }),
                       const SizedBox(height: sectionPadding),
-                      Text("Other Palettes", style: headerTextStyle),
+                      Text('Other Palettes', style: headerTextStyle),
                       const SizedBox(height: headingPadding),
                       LoadImagesButtons(
                           loadedImagesProvider(ImageCollectionType.palette)),
@@ -277,7 +287,7 @@ class MainPage extends StatelessWidget {
                         selectedProvider: selectedPaletteIndexProvider,
                       ),
                       const SizedBox(height: sectionPadding),
-                      Text("Preview", style: headerTextStyle),
+                      Text('Preview', style: headerTextStyle),
                       Expanded(
                         child: Consumer(builder: (context, ref, child) {
                           final asyncImage = ref.watch(previewImageProvider);
@@ -303,7 +313,7 @@ class MainPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text("Output Files", style: headerTextStyle),
+                      Text('Output Files', style: headerTextStyle),
                       const SizedBox(height: headingPadding),
                       Consumer(builder: (context, ref, child) {
                         final asyncPalette = ref.watch(
@@ -320,7 +330,7 @@ class MainPage extends StatelessWidget {
                             loading: () => null,
                           ),
                           icon: const Icon(Icons.save),
-                          label: const Text("Save Generated Palette"),
+                          label: const Text('Save Generated Palette'),
                         );
                       }),
                       const SizedBox(height: headingPadding),
@@ -336,7 +346,7 @@ class MainPage extends StatelessWidget {
                             loading: () => null,
                           ),
                           icon: const Icon(Icons.save),
-                          label: const Text("Save Sprites To Folder"),
+                          label: const Text('Save Sprites To Folder'),
                         );
                       }),
                       const SizedBox(height: headingPadding),
@@ -366,14 +376,14 @@ class MainPage extends StatelessWidget {
     final initialDir = ref.read(previousFolderProvider);
 
     // Add file extension to file name if not there
-    final fileName = paletteImage.fileName.endsWith(".png")
+    final fileName = paletteImage.fileName.endsWith('.png')
         ? paletteImage.fileName
-        : "${paletteImage.fileName}.png";
+        : '${paletteImage.fileName}.png';
 
     final result = await FilePicker.platform.saveFile(
       initialDirectory: initialDir,
       type: FileType.custom,
-      allowedExtensions: ["png"],
+      allowedExtensions: ['png'],
       fileName: fileName,
     );
     if (result == null) return;
@@ -399,7 +409,7 @@ class MainPage extends StatelessWidget {
     List<Future<File>> waitFor = [];
     for (final outputImage in outputImages) {
       // Write image bytes to chosen file location
-      final path = "$result/${outputImage.fileName}";
+      final path = '$result/${outputImage.fileName}';
       waitFor.add(File(path).writeAsBytes(outputImage.bytes));
     }
 
@@ -423,7 +433,7 @@ class _ListHeading extends ConsumerWidget {
     return Wrap(
       children: [
         Text(
-          "${list.length} files loaded",
+          '${list.length} files loaded',
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(width: 8),
@@ -434,7 +444,7 @@ class _ListHeading extends ConsumerWidget {
                 }
               : null,
           icon: const Icon(Icons.clear_all),
-          label: const Text("Clear All"),
+          label: const Text('Clear All'),
         ),
       ],
     );
