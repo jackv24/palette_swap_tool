@@ -34,7 +34,7 @@ void main() {
   if (isDesktop) {
     doWhenWindowReady(() {
       appWindow.minSize = const Size(800, 600);
-      appWindow.size = const Size(900, 650);
+      appWindow.size = const Size(1100, 800);
       appWindow.alignment = Alignment.center;
       appWindow.title = appTitle;
       appWindow.show();
@@ -49,11 +49,7 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final asyncColor = ref.watch(colorSchemeSeedProvider);
-    final seedColor = asyncColor.when(
-      data: (data) => data,
-      error: (err, stack) => Colors.white,
-      loading: () => null,
-    );
+    final seedColor = asyncColor.value ?? Colors.white;
 
     return MaterialApp(
       title: 'Palette Swap Tool',
