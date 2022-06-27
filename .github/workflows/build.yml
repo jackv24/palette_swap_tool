@@ -44,6 +44,11 @@ jobs:
           type: 'zip'
           filename: palette_swap_tool-${{github.ref_name}}-linux.zip
           directory: build/linux/x64/release/bundle
+      # Upload artifact so we can test intermediate builds without tagging a release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: linux
+          path: build/linux/x64/release/bundle/palette_swap_tool-${{github.ref_name}}-linux.zip
       - name: Linux Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
@@ -51,6 +56,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: build/linux/x64/release/bundle/palette_swap_tool-${{github.ref_name}}-linux.zip
+          draft: true
 
   build-windows:
     runs-on: windows-latest
@@ -90,6 +96,11 @@ jobs:
           type: 'zip'
           filename: palette_swap_tool-${{github.ref_name}}-windows.zip
           directory: build/windows/runner/Release
+      # Upload artifact so we can test intermediate builds without tagging a release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: windows
+          path: build/windows/runner/Release/palette_swap_tool-${{github.ref_name}}-windows.zip
       - name: Windows Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
@@ -97,6 +108,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: build/windows/runner/Release/palette_swap_tool-${{github.ref_name}}-windows.zip
+          draft: true
 
   build-macos:
     runs-on: macos-latest
@@ -131,6 +143,11 @@ jobs:
           type: 'zip'
           filename: palette_swap_tool-${{github.ref_name}}-macos.zip
           directory: build/macos/Build/Products/Release/zip
+      # Upload artifact so we can test intermediate builds without tagging a release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: macos
+          path: build/macos/Build/Products/Release/zip/palette_swap_tool-${{github.ref_name}}-macos.zip
       - name: macOS Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
@@ -138,3 +155,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: build/macos/Build/Products/Release/zip/palette_swap_tool-${{github.ref_name}}-macos.zip
+          draft: true
