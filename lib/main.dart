@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:palette_swap_tool/utils/color.dart';
 import 'package:palette_swap_tool/utils/settings.dart';
 import 'package:palette_swap_tool/widgets/load_image_button.dart';
 import 'package:palette_swap_tool/widgets/load_images_buttons.dart';
@@ -46,8 +47,12 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
-
-    const seedColor = Colors.teal;
+    final asyncColor = ref.watch(colorSchemeSeedProvider);
+    final seedColor = asyncColor.when(
+      data: (data) => data,
+      error: (err, stack) => Colors.white,
+      loading: () => null,
+    );
 
     return MaterialApp(
       title: 'Palette Swap Tool',

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:palette_swap_tool/utils/color.dart';
 import 'package:palette_swap_tool/utils/settings.dart';
 
 class ThemeModeButton extends ConsumerWidget {
@@ -30,6 +31,9 @@ class ThemeModeButton extends ConsumerWidget {
         final nextIndex = (themeMode.index + 1) % ThemeMode.values.length;
         final newThemeMode = ThemeMode.values[nextIndex];
         ref.read(themeModeProvider.notifier).setValue(newThemeMode);
+
+        // Refresh color seed from OS
+        ref.refresh(colorSchemeSeedProvider);
       },
       icon: Icon(icon),
       color: color,
