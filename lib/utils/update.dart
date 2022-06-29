@@ -20,13 +20,16 @@ final updateAvailableProvider = FutureProvider<String?>((ref) async {
   var tag = data['tag_name'] as String;
   if (tag.startsWith('v')) tag = tag.substring(1);
 
-  try {
-    final currentVersion = Version.parse(buildName);
-    final latestVersion = Version.parse(tag);
+  final currentVersion = _tryParseVersion(buildName);
+  final latestVersion = _tryParseVersion(tag);
 
-    return latestVersion > currentVersion ? tag : null;
-  } on FormatException {
-    // If version parsing fails, assume we're not in a proper release build
-    return null;
-  }
+  return latestVersion > currentVersion ? tag : null;
 });
+
+Version _tryParseVersion(String string) {
+  try {
+    return Version.parse(string);
+  } on FormatException {
+    return Version(0, 0, 0);
+  }
+}
