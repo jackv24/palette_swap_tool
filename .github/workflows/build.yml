@@ -89,7 +89,7 @@ jobs:
       - name: Enable windows build
         run: flutter config --enable-windows-desktop
       - name: Build artifacts
-        run: flutter build windows --release -v --build-name=$BUILD_NAME --dart-define BUILD_NAME=$BUILD_NAME
+        run: flutter build windows --release -v --build-name=$env:BUILD_NAME --dart-define BUILD_NAME=$env:itBUILD_NAME
       - name: Archive Release
         uses: thedoctor0/zip-release@master
         with:
